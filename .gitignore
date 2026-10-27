@@ -1,0 +1,12 @@
+# API Key 等秘密，绝不进 git 仓库
+config.json
+
+# Swift Package Manager 编译产物（可随时重新生成）
+.build/
+
+# macOS 系统杂项
+.DS_Store
+
+# 素材原料库与备份（本地保留，不进仓库）
+desktoppet/
+*.zip
