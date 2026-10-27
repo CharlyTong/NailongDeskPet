@@ -10,3 +10,6 @@ config.json
 # 素材原料库与备份（本地保留，不进仓库）
 desktoppet/
 *.zip
+
+# IDE 内部工作区文件
+.trae/
