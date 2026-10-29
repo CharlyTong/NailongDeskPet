@@ -29,7 +29,7 @@ final class PetEngine: ObservableObject {
     @Published private(set) var state: PetState = .idle
     @Published private(set) var frameIndex = 0
     @Published private(set) var bubbleText: String?
-    @Published private(set) var messages: [ChatMessage] = []   // 聊天历史
+    @Published private(set) var messages: [ChatMessage] = []   // 聊天历史（启动时从磁盘恢复）
     @Published private(set) var isBusy = false                 // 正在等 API 回复
 
     // MARK: - 私有运行状态
@@ -47,14 +47,14 @@ final class PetEngine: ObservableObject {
     /// 戳一戳的本地兜底文案（API 没配/失败时随机蹦一句）
     private static let pokeLines = [
         "我在。", "戳我干嘛？", "你有事吗", "牛来！", "我是奶龙",
-        "别戳肚皮！", "再戳要收费了", "戳坏了赔钱哦", "嗯？",
+        "再戳要收费了", "戳坏了赔钱哦", "嗯？", "您有事吗大姐"
     ]
 
     /// 戳一戳的专属人设：要求模型每次现编一句极短、抽象、贱萌的回应
     private static let pokePrompt = """
     你是桌宠奶龙，一只圆滚滚的黄色小恐龙。用户戳了你一下。
-    现编一句【15字以内】的贱萌抽象短句回应，越抽象越好风格参考（禁止照抄）：
-    "我在"、"戳我干嘛？"、"你有事吗"、"牛来"、"我是奶龙"。
+    现编一句【25字以内】的贱萌抽象短句回应，越抽象越猎奇越好，风格参考（禁止照抄）：
+    "我在"、"戳我干嘛？"、"你有事吗"、"牛来"、"我是奶龙"、"哥，你别撩我了我这种处蛙禁不起撩啊"。
     直接输出那一句话。禁止解释，禁止重复之前的回复。
     """
     private var pokeTask: Task<Void, Never>?   // 挂起的戳一戳请求（可取消）
@@ -69,6 +69,7 @@ final class PetEngine: ObservableObject {
 
     func start() {
         origin = panel?.frame.origin ?? origin   // 以 AppDelegate 摆好的初始位置为准
+        restoreMemory()                          // 恢复上次会话的聊天记忆
         scheduleNextDecision(2...6)
         let t = Timer(timeInterval: PetConfig.tickInterval, repeats: true) { [weak self] _ in
             self?.tick()
@@ -264,6 +265,44 @@ final class PetEngine: ObservableObject {
     }
 
     // ============================================================
+    // 长期记忆：聊天历史持久化到 项目根/chat_history.json
+    //
+    // 模型本身无记忆，"记得你"全靠每次请求重发完整历史（见 sendChat）。
+    // 以前历史只活在内存里 → 进程一 kill 就失忆。现在每次消息变化
+    // 都落盘，启动时读回 → 重启不失忆。
+    // 文件在 .gitignore 里（私人对话数据，不进仓库）。
+    // ============================================================
+    static let historyURL = URL(fileURLWithPath: #filePath)  // …/Model/PetEngine.swift
+        .deletingLastPathComponent()   // …/Model
+        .deletingLastPathComponent()   // …/DeskPet
+        .deletingLastPathComponent()   // …/Sources
+        .deletingLastPathComponent()   // 项目根（桌宠/）
+        .appendingPathComponent("chat_history.json")
+
+    /// 上限条数：历史无限增长会撑爆模型的上下文窗口（每次请求都发全量），
+    /// 也让 API 账单越来越贵。60 条 ≈ 30 轮对话，够它记得你是谁了。
+    private static let memoryLimit = 60
+
+    /// 启动时恢复记忆（start() 里调用）
+    private func restoreMemory() {
+        guard let data = try? Data(contentsOf: Self.historyURL),
+              let restored = try? JSONDecoder().decode([ChatMessage].self, from: data),
+              !restored.isEmpty else { return }
+        messages = restored
+        NSLog("[memory] 已恢复 \(restored.count) 条聊天记忆")
+    }
+
+    /// 消息变化后落盘。.atomic = 先写临时文件再原子改名，
+    /// 写到一半断电/崩溃也只会丢新内容，不会损坏旧文件。
+    private func persistMemory() {
+        if messages.count > Self.memoryLimit {
+            messages = Array(messages.suffix(Self.memoryLimit))   // 砍掉最老的
+        }
+        guard let data = try? JSONEncoder().encode(messages) else { return }
+        try? data.write(to: Self.historyURL, options: .atomic)
+    }
+
+    // ============================================================
     // AI 聊天
     // ============================================================
 
@@ -275,12 +314,16 @@ final class PetEngine: ObservableObject {
             return
         }
         messages.append(ChatMessage(role: "user", content: text))
+        persistMemory()   // 先落盘用户消息：就算回复途中崩溃，这句话也不丢
         isBusy = true
         let history = messages
         // Task = Swift 的轻量线程任务；@MainActor 保证回调后回到主线程改 UI 数据。
         // async/await 和 Python 的 asyncio 语义几乎一样。
         Task { @MainActor in
-            defer { self.isBusy = false }
+            defer {
+                self.isBusy = false
+                self.persistMemory()   // 成功/出错都会走到这，回复照单落盘
+            }
             do {
                 let reply = try await service.send(history)
                 self.messages.append(ChatMessage(role: "assistant", content: reply))
