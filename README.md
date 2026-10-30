@@ -76,13 +76,6 @@ Sources/DeskPet/
     └── ScreenInfo                   #   屏幕可用区域查询
 ```
 
-## 若干设计要点（踩坑实录）
-
-1. **单一手势自判点击/拖拽**：真人点击必带几像素手抖，`onTapGesture` + `DragGesture` 并存时 tap 常被吞。解法是只挂一个 `minimumDistance: 0` 的拖拽手势，松手时按总位移 <6pt 判定为戳。
-2. **气泡窗口两连坑**：`NSPanel` 默认 `hidesOnDeactivate`，而桌宠 App 永不活跃导致气泡秒隐藏；`NSHostingView` 默认按内容理想尺寸反向改窗口几何。前者补 `.nonactivatingPanel`，后者设 `sizingOptions = []`。
-3. **拖拽跟手**：SwiftUI `DragGesture.translation` 是相对视图自身的位移，拖窗口时坐标系跟着动形成循环减速。改用 `NSEvent.mouseLocation` 全局坐标计算增量，与 `setFrameOrigin` 完全同系，无需 y 轴换算。
-4. **深浅色半硬编码翻车**：背景写死白色而文字色跟随系统外观，深色模式下白字白底。凡一半硬编码一半跟随系统的组合，外观切换必翻车——两边必须一致。
-
 ## 换皮肤
 
 帧序列命名：`idle_0.png`、`walk_0.png`…，帧数与帧率在 `SpriteConfig.json` 里改。
