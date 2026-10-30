@@ -1,8 +1,11 @@
 # 奶龙桌宠 · NailongDeskPet
 
 > 一只在屏幕底部溜达的奶龙：能戳、能拖、能摔、能聊。
-> **双平台实现**：macOS 原生版（Swift + SwiftUI）+ Windows 版（Python + PySide6），
-> 共用素材、配置格式与 AI 人设，接 DeepSeek 等 OpenAI 兼容 API。
+> **macOS 原生版**（Swift + SwiftUI），接 DeepSeek 等 OpenAI 兼容 API。
+
+> 跨平台版（Python + PySide6，Windows / macOS / Linux）在姐妹仓库：
+> **[NailongDeskPet-Python](https://github.com/CharlyTong/NailongDeskPet-Python)**
+> 两版共用素材、配置格式与 AI 人设，架构镜像同构。
 
 ## 功能
 
@@ -20,32 +23,17 @@
 
 ## 环境要求
 
-**macOS 版**：macOS 13+、Swift 5.9+（Xcode Command Line Tools）
-**Windows 版**：Windows 10+、Python 3.9+
-（均可选配 DeepSeek API Key，没有则无 AI 功能但桌宠照常运行）
+macOS 13+、Swift 5.9+（Xcode Command Line Tools）。
+可选配 DeepSeek API Key（https://platform.deepseek.com），没有则无 AI 功能但桌宠照常运行。
 
 ## 快速开始
-
-### macOS（Swift 原生版）
 
 ```bash
 git clone https://github.com/CharlyTong/NailongDeskPet.git
 cd NailongDeskPet
 cp config.example.json config.json
-# 编辑 config.json 填入你的 API Key（https://platform.deepseek.com）
-swift run DeskPet
-```
-
-### Windows（Python + PySide6 版）
-
-```powershell
-git clone https://github.com/CharlyTong/NailongDeskPet.git
-cd NailongDeskPet\windows
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt   # 只需装 PySide6 一个包
-copy config.example.json config.json
 # 编辑 config.json 填入你的 API Key
-.venv\Scripts\python main.py
+swift run DeskPet
 ```
 
 ## 配置说明（config.json）
@@ -63,19 +51,7 @@ copy config.example.json config.json
 
 ## 项目结构
 
-**Windows 版**（`windows/`，与 macOS 版镜像同构，逻辑逐段翻译）：
-
-```
-windows/
-├── main.py           # 装配入口：创建部件、信号连线、启动（≈ AppDelegate）
-├── pet_engine.py     # 大脑：33ms 主循环 + 状态机 + 物理 + AI 调度 + 记忆持久化
-├── pet_window.py     # 桌宠窗：透明置顶无边框 + 帧动画 + 鼠标交互
-├── bubble.py         # 气泡窗：漫画气泡 + 尾巴 + 点击穿透 + 淡入
-├── chat_window.py    # 聊天窗：历史渲染 + 输入发送
-├── ai_client.py      # OpenAI 兼容客户端（纯标准库 urllib，零额外依赖）
-├── sprites/          # 帧图 + SpriteConfig.json（与 macOS 版共用素材）
-└── requirements.txt  # 唯一依赖 PySide6
-```
+（Python 跨平台版的项目结构与设计要点见姐妹仓库 [NailongDeskPet-Python](https://github.com/CharlyTong/NailongDeskPet-Python)）
 
 **macOS 版**（`Sources/DeskPet/`）：
 
@@ -109,9 +85,8 @@ Sources/DeskPet/
 
 ## 换皮肤
 
-两版共用同一套帧序列命名：`idle_0.png`、`walk_0.png`…，帧数与帧率在 `SpriteConfig.json` 里改。
-- macOS 版素材在 `Sources/DeskPet/Resources/Sprites/`，改完 `swift run` 生效
-- Windows 版素材在 `windows/sprites/`，改完重启 `main.py` 生效
+帧序列命名：`idle_0.png`、`walk_0.png`…，帧数与帧率在 `SpriteConfig.json` 里改。
+素材在 `Sources/DeskPet/Resources/Sprites/`，改完 `swift run` 生效。
 
 ## 素材声明
 
@@ -119,6 +94,5 @@ Sources/DeskPet/
 
 ## 已知限制（Roadmap）
 
-- [ ] 尚未打包独立可执行文件（macOS 的 `.app` / Windows 的 `.exe`）
-- [ ] 暂无开机自启与菜单栏/托盘常驻图标
-- [ ] Windows 版尚未在真机验证（开发于 macOS，理论兼容，待实测）
+- [ ] 尚未打包独立 `.app`（双击运行 / 开机自启）
+- [ ] 暂无菜单栏常驻图标
