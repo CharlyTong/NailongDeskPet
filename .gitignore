@@ -3,6 +3,13 @@ config.json
 
 # 私人聊天记忆，不进仓库
 chat_history.json
+windows/chat_history.json
+
+# Windows 版（Python）：虚拟环境 / 缓存 / 本地配置
+windows/.venv/
+windows/config.json
+__pycache__/
+*.pyc
 
 # Swift Package Manager 编译产物（可随时重新生成）
 .build/
